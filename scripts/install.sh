@@ -155,7 +155,7 @@ for _ in $(seq 1 60); do
 	sleep 2
 done
 for _ in $(seq 1 30); do
-	if docker exec tgweb-proxy curl -fsS http://127.0.0.1:9081/readyz >/dev/null 2>&1; then break; fi
+	if docker exec tgweb-proxy tgweb-net get -o /dev/null http://127.0.0.1:9081/readyz >/dev/null 2>&1; then break; fi
 	sleep 2
 done
 

@@ -92,7 +92,7 @@ Service `type: LoadBalancer` с портами `80→8080` и `443→8443`
 
 ```bash
 kubectl -n tgweb-proxy logs deploy/tgweb-proxy -f
-kubectl -n tgweb-proxy exec deploy/tgweb-proxy -- curl -s 127.0.0.1:9081/readyz
+kubectl -n tgweb-proxy exec deploy/tgweb-proxy -- tgweb-net get http://127.0.0.1:9081/readyz
 kubectl -n tgweb-proxy rollout restart deploy/tgweb-proxy     # после смены страницы
 ```
 

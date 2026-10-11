@@ -60,20 +60,63 @@ jobs:
         id: args
         env:
           TPROXY_REF: ${{ github.event.inputs.tproxy_ref }}
+        # REFRESH = ISO week: OS updates and "latest" Go dependencies are
+        # re-resolved at least weekly despite the build cache.
         run: |
-          if [ -n "$TPROXY_REF" ]; then
-            echo "build_args=TPROXY_REF=$TPROXY_REF" >> "$GITHUB_OUTPUT"
-          else
-            echo "build_args=" >> "$GITHUB_OUTPUT"
-          fi
+          {
+            echo "build_args<<EOF"
+            echo "REFRESH=$(date -u +%G-W%V)"
+            if [ -n "$TPROXY_REF" ]; then echo "TPROXY_REF=$TPROXY_REF"; fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-      - uses: docker/build-push-action@v6
+      # Build once into the local Docker engine so the image can be scanned
+      # before anything is published.
+      - name: Build
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
+          load: true
+          tags: telegram-web-proxy:ci
+          build-args: ${{ steps.args.outputs.build_args }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: |
+          docker run -d --name smoke -e TPROXY_HOSTNAME=proxy.example.com -e TLS_MODE=off \
+            --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add KILL \
+            telegram-web-proxy:ci
+          for i in $(seq 1 30); do
+            docker exec smoke tgweb-net get -o /dev/null http://127.0.0.1:9081/healthz && break
+            sleep 2
+          done
+          docker exec smoke tgweb-net get -o /dev/null http://127.0.0.1:9081/healthz
+          docker logs smoke 2>&1 | tail -20
+          docker rm -f smoke
+
+      # Fails the job on critical/high CVEs that already have a fix, so a
+      # vulnerable image is never pushed. Requires the Docker Hub login above.
+      - name: Vulnerability scan (Docker Scout)
+        if: github.event_name != 'pull_request'
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: local://telegram-web-proxy:ci
+          only-severities: critical,high
+          only-fixed: true
+          exit-code: true
+          summary: true
+
+      - name: Push
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: ${{ steps.args.outputs.build_args }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max

@@ -48,7 +48,7 @@ client WebView ──HTTPS/WSS──► Caddy :8443 (или :8080 при TLS_MOD
 | Процесс | Пользователь | Слушает | Примечание |
 |---|---|---|---|
 | `entrypoint.sh` (bash под `tini`) | root | – | готовит файлы, перезапускает упавшие процессы, обновляет `proxy-multi.conf` |
-| `caddy` | `caddy` | `:8080`, `:8443`, `127.0.0.1:9000` | высокие порты, file capabilities сняты |
+| `caddy` | `caddy` | `:8080`, `:8443`, `127.0.0.1:9000` | высокие порты, собран из исходников без file capabilities |
 | `tproxy-server` | `tproxy` | `127.0.0.1:9080`, `127.0.0.1:9081` | запускается через `setpriv --no-new-privs` |
 | `mtproto-proxy` | root → `mtproxy` (`-u`) | `0.0.0.0:2398`, `:8888` | у стокового MTProxy нет опции bind. **Не публикуйте эти порты** |
 
@@ -64,10 +64,26 @@ docker build -t tgweb-proxy:edge --build-arg TPROXY_REF=master .   # свежи�
 | `TPROXY_REF` | `c8adb8b7…` (проверенный коммит) | коммит, тег или ветка tproxy-server |
 | `TPROXY_REPO` | github.com/telegramdesktop/tproxy-server | форк |
 | `RUN_TESTS` | `1` | `go test ./...` во время сборки (тест с node пропускается) |
-| `GO_VERSION` | `1.26.5` | как в апстримном `install.sh` |
-| `CADDY_VERSION` | `2.11.4` | как в апстримном `install.sh` |
+| `GO_VERSION` | `1.27` | плавающий минорный тег: каждая сборка берёт последний патч-релиз Go (реле, Caddy, `tgweb-net`) |
+| `CADDY_VERSION` | `2.11.7` | Caddy собирается из исходников |
+| `CADDY_DEP_UPGRADES` | grpc, x/net, x/crypto, x/text `@latest` | зависимости Caddy, поднимаемые выше его `go.mod` ради исправлений безопасности |
 | `MTPROXY_COMMIT` / `MTPROXY_SHA256` | `f36d8af…` / `919795…` | официальный MTProxy; контрольная сумма архива проверяется |
-| `DEBIAN_SUITE` | `bookworm` | база для сборки MTProxy и рантайма |
+| `DEBIAN_SUITE` | `trixie` | база для сборки MTProxy и рантайма |
+| `REFRESH` | `manual` | любое новое значение сбрасывает кэш слоёв с `apt-get upgrade` и `go get …@latest` (CI передаёт номер недели) |
+
+### Уязвимости
+
+- Пакеты Debian обновляются при сборке (`apt-get upgrade`). В рантайме нет `curl`,
+  `iproute2` и их зависимостей (libcurl, GnuTLS, LDAP, RTMP, Kerberos): HTTP-запросы и
+  определение локального адреса выполняет статический хелпер `tgweb-net`
+  (`docker/tgweb-net`).
+- Все Go-бинарники собираются последним патч-релизом Go. Caddy собирается из исходников,
+  а не копируется из официального образа, который отстаёт по версиям Go и grpc.
+- CI собирает образ, проверяет, что он запускается, и сканирует его Docker Scout.
+  Публикация останавливается, если найдены критические или высокие CVE, для которых
+  уже есть исправление.
+- Новые CVE появляются постоянно, поэтому образ пересобирается еженедельно.
+  Локальная проверка: `docker scout cves --only-fixed tgweb-proxy:local`.
 
 Образ собирается только под `linux/amd64`: MTProxy использует x86-специфичный код. На
 Apple Silicon сборка идёт через эмуляцию (`--platform linux/amd64`), в рантайме нужен
@@ -216,10 +232,10 @@ Capability, которую выводит клиент:
 
 ```bash
 docker compose logs -f                                     # все процессы
-docker compose exec tgweb-proxy curl -s 127.0.0.1:9081/healthz   # liveness реле
-docker compose exec tgweb-proxy curl -s 127.0.0.1:9081/readyz    # + доступность MTProxy
-docker compose exec tgweb-proxy curl -s 127.0.0.1:9081/metrics
-docker compose exec tgweb-proxy curl -s 127.0.0.1:8888/stats     # статистика MTProxy
+docker compose exec tgweb-proxy tgweb-net get http://127.0.0.1:9081/healthz   # liveness реле
+docker compose exec tgweb-proxy tgweb-net get http://127.0.0.1:9081/readyz    # + доступность MTProxy
+docker compose exec tgweb-proxy tgweb-net get http://127.0.0.1:9081/metrics
+docker compose exec tgweb-proxy tgweb-net get http://127.0.0.1:8888/stats     # статистика MTProxy
 docker compose exec tgweb-proxy show-link
 ```
 

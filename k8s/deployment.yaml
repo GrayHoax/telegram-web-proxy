@@ -58,17 +58,17 @@ spec:
               add: ["CHOWN", "SETUID", "SETGID", "KILL"]
           startupProbe:
             exec:
-              command: ["curl", "-fsS", "http://127.0.0.1:9081/healthz"]
+              command: ["tgweb-net", "get", "-timeout", "4s", "-o", "/dev/null", "http://127.0.0.1:9081/healthz"]
             periodSeconds: 5
             failureThreshold: 36
           livenessProbe:
             exec:
-              command: ["curl", "-fsS", "http://127.0.0.1:9081/healthz"]
+              command: ["tgweb-net", "get", "-timeout", "4s", "-o", "/dev/null", "http://127.0.0.1:9081/healthz"]
             periodSeconds: 30
             timeoutSeconds: 5
           readinessProbe:
             exec:
-              command: ["curl", "-fsS", "http://127.0.0.1:9081/readyz"]
+              command: ["tgweb-net", "get", "-timeout", "4s", "-o", "/dev/null", "http://127.0.0.1:9081/readyz"]
             periodSeconds: 15
             timeoutSeconds: 5
           resources:

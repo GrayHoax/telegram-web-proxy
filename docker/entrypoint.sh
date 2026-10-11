@@ -266,8 +266,7 @@ ensure_dir "$DATA/mtproxy" root:mtproxy 0750
 fetch() { # url dest minsize
 	local tmp
 	tmp="$(mktemp "$2.XXXXXX")"
-	if curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
-		--max-time 30 --output "$tmp" "$1" && [[ "$(wc -c < "$tmp")" -ge "$3" ]]; then
+	if tgweb-net get -https -timeout 30s -o "$tmp" "$1" && [[ "$(wc -c < "$tmp")" -ge "$3" ]]; then
 		chmod 0640 "$tmp"
 		chown root:mtproxy "$tmp"
 		printf %s "$tmp"
@@ -316,13 +315,11 @@ nat_args=()
 case "$MTPROXY_NAT_INFO" in
 	off|none|"") ;;
 	auto)
-		local_address="$(ip -4 route get 149.154.175.50 2>/dev/null |
-			sed -n 's/.*[[:space:]]src[[:space:]]\+\([0-9.]\+\).*/\1/p' | head -n 1)"
+		local_address="$(tgweb-net local-ip 149.154.175.50 2>/dev/null || true)"
 		public_address="$MTPROXY_PUBLIC_IP"
 		if [[ -z "$public_address" ]]; then
 			for probe in https://api.ipify.org https://ifconfig.co/ip https://icanhazip.com; do
-				candidate="$(curl --fail --silent --location --ipv4 --max-time 15 \
-					--proto '=https' --proto-redir '=https' --tlsv1.2 "$probe" 2>/dev/null |
+				candidate="$(tgweb-net get -https -4 -timeout 15s "$probe" 2>/dev/null |
 					tr -d '[:space:]')" || continue
 				if [[ "$candidate" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 					public_address="$candidate"
