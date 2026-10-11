@@ -1,0 +1,10 @@
+# Keeps the relay token key, MTProxy routing data and (TLS_MODE=auto) certificates.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tgweb-proxy-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 256Mi

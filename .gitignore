@@ -1,0 +1,8 @@
+.env
+/data/
+/site/*
+!/site/README.md
+k8s/secret.env
+k8s/site/*
+!k8s/site/.gitkeep
+.idea/

@@ -1,0 +1,44 @@
+# Traefik v3 in Docker in front of tgweb-proxy. Use together with compose.yaml:
+#
+#   docker compose -f compose.yaml -f examples/reverse-proxy/compose.traefik.yaml up -d
+#
+# Traefik obtains the certificate; the tgweb-proxy container publishes no ports
+# and is reached over the Docker network.
+services:
+  traefik:
+    image: traefik:v3.5
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.websecure.address=:443
+      # Long polls are 25 s; Traefik's default readTimeout (60 s) is enough,
+      # keep it explicit.
+      - --entrypoints.websecure.transport.respondingTimeouts.readTimeout=90s
+      - --certificatesresolvers.le.acme.tlschallenge=true
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:-}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      # No access log: carrier URIs must not be logged.
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-acme:/letsencrypt
+
+  tgweb-proxy:
+    environment:
+      TLS_MODE: "off"
+    ports: !reset []
+    labels:
+      - traefik.enable=true
+      # Mode A: the whole hostname. For Mode B add: && PathPrefix(`/<base_path>/`)
+      - traefik.http.routers.tgweb.rule=Host(`${TPROXY_HOSTNAME}`)
+      - traefik.http.routers.tgweb.entrypoints=websecure
+      - traefik.http.routers.tgweb.tls.certresolver=le
+      - traefik.http.services.tgweb.loadbalancer.server.port=8080
+
+volumes:
+  traefik-acme:

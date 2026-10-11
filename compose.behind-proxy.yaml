@@ -1,0 +1,12 @@
+# Override for running behind an existing reverse proxy on the same host.
+# The container speaks plain HTTP on 127.0.0.1:8080 and trusts X-Forwarded-For
+# from private address ranges (TRUSTED_PROXIES).
+#
+#   docker compose -f compose.yaml -f compose.behind-proxy.yaml up -d
+services:
+  tgweb-proxy:
+    environment:
+      TLS_MODE: "off"
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-private_ranges}
+    ports: !override
+      - "127.0.0.1:${TGWEB_HTTP_PORT:-8080}:8080"

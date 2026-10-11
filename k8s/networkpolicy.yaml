@@ -1,0 +1,21 @@
+# Only the HTTP gateway port is reachable. MTProxy (2398) and its statistics
+# port (8888) listen on all pod interfaces because stock MTProxy has no bind
+# option, so they must be closed here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tgweb-proxy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tgweb-proxy
+  policyTypes: ["Ingress"]
+  ingress:
+    - ports:
+        - port: 8080
+          protocol: TCP
+      # Tighten to the Ingress controller namespace, for example:
+      # from:
+      #   - namespaceSelector:
+      #       matchLabels:
+      #         kubernetes.io/metadata.name: ingress-nginx

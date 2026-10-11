@@ -1,0 +1,35 @@
+# kubectl apply -k k8s/       (or simply run k8s/deploy.sh)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: tgweb-proxy
+
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - networkpolicy.yaml
+  - ingress.yaml          # ingress-nginx / Traefik + cert-manager
+  # - httproute.yaml      # Gateway API instead of ingress.yaml
+
+images:
+  - name: tgweb-proxy
+    # The image built by `docker build` or the GitHub workflow and pushed to your registry.
+    newName: ghcr.io/your-account/tgweb-proxy
+    newTag: latest
+
+configMapGenerator:
+  - name: tgweb-proxy-config
+    envs:
+      - config.env
+  - name: tgweb-proxy-site
+    files:
+      - site/index.html
+      # - site/404.html
+      # - site/styles.css
+
+secretGenerator:
+  - name: tgweb-proxy-secret
+    envs:
+      - secret.env

@@ -1,0 +1,47 @@
+# Standalone deployment: the container owns ports 80/443 and obtains a
+# Let's Encrypt certificate itself (TLS_MODE=auto).
+# Behind your own nginx/Caddy/Traefik/Apache/HAProxy use:
+#   docker compose -f compose.yaml -f compose.behind-proxy.yaml up -d
+name: tgweb-proxy
+
+services:
+  tgweb-proxy:
+    build:
+      context: .
+      args:
+        # Upstream tproxy-server revision; "master" builds the latest code.
+        TPROXY_REF: ${TPROXY_REF:-c8adb8b7c6b7fc46c12ae3acb68be9070c26a8e8}
+    image: ${TGWEB_IMAGE:-tgweb-proxy:local}
+    platform: linux/amd64
+    container_name: tgweb-proxy
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TPROXY_HOSTNAME: ${TPROXY_HOSTNAME:?set TPROXY_HOSTNAME in .env}
+      TLS_MODE: ${TLS_MODE:-auto}
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - tgweb-data:/data
+      - ./site:/site:ro
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - KILL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 25s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  tgweb-data:

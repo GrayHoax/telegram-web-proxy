@@ -1,0 +1,11 @@
+.git
+.github
+.idea
+.env
+data
+site
+docs
+k8s
+examples
+scripts
+*.md

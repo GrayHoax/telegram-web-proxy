@@ -1,0 +1,41 @@
+# Caddy (on the host or in another container) in front of tgweb-proxy started
+# with compose.behind-proxy.yaml (127.0.0.1:8080, TLS_MODE=off).
+{
+	servers {
+		# Must stay well above the relay's 25 s long poll.
+		timeouts {
+			read_body 60s
+		}
+	}
+}
+
+# Mode A (recommended): dedicated hostname, every path to the container.
+proxy.example.com {
+	log {
+		output discard
+	}
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Forwarded-For {client_ip}
+		flush_interval -1
+		transport http {
+			response_header_timeout 40s
+		}
+	}
+}
+
+# Mode B: an existing site, only the random base path to the container.
+# example.com {
+# 	handle /phcf2vfe7zgbrslg/* {
+# 		reverse_proxy 127.0.0.1:8080 {
+# 			header_up X-Forwarded-For {client_ip}
+# 			flush_interval -1
+# 			transport http {
+# 				response_header_timeout 40s
+# 			}
+# 		}
+# 	}
+# 	handle {
+# 		root * /var/www/example.com
+# 		file_server
+# 	}
+# }

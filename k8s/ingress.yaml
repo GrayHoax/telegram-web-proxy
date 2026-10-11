@@ -1,0 +1,36 @@
+# Forwards the WHOLE hostname to the container: the relay itself decides what is
+# the cover site and what is the proxy. Requires cert-manager with a
+# ClusterIssuer named "letsencrypt", or replace the tls section with your own
+# certificate secret.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tgweb-proxy
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    # ingress-nginx: 25 s long polls, 2 MiB uplink batches, WebSocket carrier.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "90"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "90"
+    nginx.ingress.kubernetes.io/proxy-body-size: "4m"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
+    nginx.ingress.kubernetes.io/enable-access-log: "false"
+    # Traefik needs no annotations: it keeps Host, streams bodies and
+    # proxies WebSockets by default.
+spec:
+  # ingressClassName: nginx
+  tls:
+    - hosts:
+        - proxy.example.com
+      secretName: tgweb-proxy-tls
+  rules:
+    - host: proxy.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tgweb-proxy
+                port:
+                  name: http

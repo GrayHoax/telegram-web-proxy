@@ -1,0 +1,24 @@
+# Gateway API alternative to ingress.yaml. The Gateway (with an HTTPS listener
+# and certificate for the hostname) is managed by the cluster administrator.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: tgweb-proxy
+spec:
+  parentRefs:
+    - name: public-gateway
+      namespace: gateway-system
+      sectionName: https
+  hostnames:
+    - proxy.example.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: tgweb-proxy
+          port: 80
+      # Several implementations default to 15 s, which cuts the relay's 25 s long poll.
+      timeouts:
+        request: 120s

@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tgweb-proxy
+  labels:
+    app.kubernetes.io/name: tgweb-proxy
+spec:
+  # Relay sessions live in memory: run exactly one replica per hostname.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tgweb-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tgweb-proxy
+    spec:
+      # Official MTProxy is built for x86_64 only.
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: tgweb-proxy
+          image: tgweb-proxy
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: tgweb-proxy-config
+            - secretRef:
+                name: tgweb-proxy-secret
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: site
+              mountPath: /site
+              readOnly: true
+            - name: run
+              mountPath: /run/tgweb
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            # The entrypoint starts as root only to prepare files; every
+            # service then runs as its own unprivileged user.
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["CHOWN", "SETUID", "SETGID", "KILL"]
+          startupProbe:
+            exec:
+              command: ["curl", "-fsS", "http://127.0.0.1:9081/healthz"]
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            exec:
+              command: ["curl", "-fsS", "http://127.0.0.1:9081/healthz"]
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["curl", "-fsS", "http://127.0.0.1:9081/readyz"]
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 768Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: tgweb-proxy-data
+        - name: site
+          configMap:
+            name: tgweb-proxy-site
+        - name: run
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
