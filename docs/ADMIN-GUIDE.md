@@ -146,7 +146,8 @@ Caddy доверяет `X-Forwarded-For`/`X-Real-IP` только от `TRUSTED_
 ### 3.3. Kubernetes
 
 Описано в [k8s/README.md](../k8s/README.md): kustomize, Ingress (ingress-nginx/Traefik
-+ cert-manager) или Gateway API HTTPRoute, PVC, NetworkPolicy, read-only root FS.
++ cert-manager) или Gateway API HTTPRoute, PVC (или `emptyDir` через компонент
+`components/no-pvc`), NetworkPolicy, read-only root FS.
 
 ## 4. Параметры окружения
 
@@ -157,12 +158,13 @@ Caddy доверяет `X-Forwarded-For`/`X-Real-IP` только от `TRUSTED_
 | `ACME_EMAIL` | – | контакт ACME |
 | `TPROXY_SECRET` | генерируется в `/data/secret` | `[0-9a-f]{32}` или `dd` + 32 hex. MTProxy получает его без префикса `dd` |
 | `TPROXY_BASE_PATH` | генерируется в `/data/base_path` | сегменты `[A-Za-z0-9][A-Za-z0-9_-]*` через `/`, не длиннее 128 символов, регистр значим; `none` – корень |
+| `TPROXY_TOKEN_KEY` | генерируется в `/data/relay/token.key` | 64 hex (`openssl rand -hex 32`) – ключ подписи токенов реле. Нужен, когда `/data` не постоянный (Kubernetes без PVC); если задан, файл в `/data` не используется |
 | `TPROXY_CARRIER_MODE` | `https` | `https` / `https-lanes` / `websocket` / `websocket-lanes` (см. таблицу в README апстрима) |
 | `TPROXY_LIMITS_JSON` | – | подставляется как `"limits": {…}` в `config.json` реле; значения проверяет `tproxy-server -check` |
 | `TRUSTED_PROXIES` | `private_ranges` | аргументы `trusted_proxies static …` для Caddy (только при `TLS_MODE=off`) |
 | `MTPROXY_WORKERS` | `1` | `-M` |
 | `MTPROXY_MAX_CONNECTIONS` | `4096` | `-C` (на воркер) |
-| `MTPROXY_NAT_INFO` | `auto` | `auto` – `ip route get` + внешнее эхо-API; `off`; или явно `10.0.0.5:203.0.113.7` |
+| `MTPROXY_NAT_INFO` | `auto` | `auto` – `tgweb-net local-ip` + внешнее эхо-API; `off`; или явно `10.0.0.5:203.0.113.7` |
 | `MTPROXY_PUBLIC_IP` | – | внешний IPv4 для `auto`, если эхо-сервисы недоступны или egress идёт через другой адрес |
 | `MTPROXY_CONFIG_REFRESH` | `86400` | период обновления `getProxyConfig` в секундах (`0` – не обновлять); при изменении MTProxy перезапускается |
 | `PRINT_LINK_ON_START` | `1` | печатать ссылку и секрет в stdout; в K8s по умолчанию `0` |
@@ -177,7 +179,7 @@ Caddy доверяет `X-Forwarded-For`/`X-Real-IP` только от `TRUSTED_
 |---|---|---|
 | `/data/secret` | root 0600 | сгенерированный секрет (если не задан `TPROXY_SECRET`) |
 | `/data/base_path` | root 0600 | сгенерированный путь (если не задан `TPROXY_BASE_PATH`) |
-| `/data/relay/token.key` | tproxy 0400 | 32-байтовый ключ подписи bootstrap/session-токенов. **Делайте резервную копию**; при потере ключа активные сессии сбрасываются |
+| `/data/relay/token.key` | tproxy 0400 | 32-байтовый ключ подписи bootstrap/session-токенов. **Делайте резервную копию**; при потере ключа активные сессии сбрасываются. Вместо файла можно задать `TPROXY_TOKEN_KEY` |
 | `/data/mtproxy/proxy-secret`, `proxy-multi.conf` | root:mtproxy 0640 | данные core.telegram.org (если скачать не удалось, используется кэш) |
 | `/data/caddy/` | caddy 0700 | ACME-аккаунт, сертификаты, autosave |
 

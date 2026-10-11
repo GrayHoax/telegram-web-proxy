@@ -14,11 +14,12 @@
 | `deployment.yaml` | 1 реплика, `Recreate`, read-only root FS, `cap_drop: ALL` + `CHOWN/SETUID/SETGID/KILL`, exec-пробы |
 | `service.yaml` | ClusterIP :80 → контейнер :8080 |
 | `pvc.yaml` | `/data`: ключ токенов, данные MTProxy |
+| `components/no-pvc/` | вариант без PVC: `/data` в `emptyDir` (см. [ниже](#без-pvc)) |
 | `networkpolicy.yaml` | входящий трафик только на 8080 (MTProxy 2398/8888 закрыты) |
 | `ingress.yaml` | Ingress для ingress-nginx/Traefik + cert-manager |
 | `httproute.yaml` | альтернатива – Gateway API |
 | `config.env` | несекретные параметры (hostname, режим, NAT) |
-| `secret.env` | секрет и путь (создаётся `deploy.sh`, в git не попадает) |
+| `secret.env` | секрет, путь и ключ токенов (создаётся `deploy.sh`, в git не попадает) |
 | `site/` | страница-обложка (`index.html`, …), попадает в ConfigMap |
 | `deploy.sh` | подготовка и `kubectl apply -k` |
 
@@ -62,12 +63,42 @@
 ## Требования к кластеру
 
 - Узел **x86_64** (`nodeSelector: kubernetes.io/arch: amd64`).
-- StorageClass по умолчанию для PVC (RWO, 256 МиБ).
+- StorageClass по умолчанию для PVC (RWO, 256 МиБ). Если его нет, используйте вариант
+  [без PVC](#без-pvc).
 - Ingress-контроллер и cert-manager с `ClusterIssuer` `letsencrypt` либо Gateway API.
 - Исходящий доступ к `core.telegram.org` и серверам Telegram (TCP 8888 middle-end).
 - Внешний IPv4, с которого Pod выходит в интернет, должен быть стабильным. MTProxy
   определяет его при старте через `api.ipify.org`. Если egress идёт через NAT-шлюз
   с другим адресом, задайте `MTPROXY_PUBLIC_IP` в `config.env`.
+
+## Без PVC
+
+Если в кластере нет StorageClass (или постоянный том не нужен), `/data` можно держать
+в `emptyDir`:
+
+```bash
+./k8s/deploy.sh --no-pvc --hostname proxy.example.com
+```
+
+Флаг раскомментирует в `kustomization.yaml` компонент `components/no-pvc`. Компонент
+удаляет `PersistentVolumeClaim` и заменяет том `data` на `emptyDir`. Вернуть PVC можно
+флагом `--pvc`. Без скрипта достаточно раскомментировать строки `components:` вручную.
+
+Всё, что должно пережить перезапуск Pod, берётся из Secret (`secret.env`):
+
+| Значение | Откуда берётся без PVC |
+|---|---|
+| `TPROXY_SECRET`, `TPROXY_BASE_PATH` | `secret.env`: ссылка для клиента не меняется |
+| `TPROXY_TOKEN_KEY` | `secret.env` (64 hex, `openssl rand -hex 32`). `deploy.sh` дописывает его сам, если ключа нет |
+| `proxy-secret`, `proxy-multi.conf` MTProxy | скачиваются с `core.telegram.org` при каждом старте; без доступа к нему Pod не запустится, кэша нет |
+| сертификаты Caddy | не нужны: TLS завершает Ingress (`TLS_MODE=off`) |
+
+Ограничения:
+
+- Используйте только с `TLS_MODE=off`. С `TLS_MODE=auto` каждый перезапуск запрашивал бы
+  новый сертификат, и вы быстро упрётесь в лимиты Let's Encrypt.
+- При перезапуске Pod активные сессии реле обрываются (они и с PVC живут только в
+  памяти), клиенты переподключаются сами.
 
 ## Ingress-контроллеры
 

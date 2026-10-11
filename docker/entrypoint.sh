@@ -12,6 +12,7 @@ umask 077
 
 log() { printf '%s [tgweb-proxy] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
+hex_to_bin() { local i; for ((i = 0; i < ${#1}; i += 2)); do printf "\x${1:i:2}"; done; }
 
 DATA=/data
 RUN=/run/tgweb
@@ -104,8 +105,17 @@ fi
 # Relay: token key, profiles, config
 # --------------------------------------------------------------------------
 ensure_dir "$DATA/relay" root:tproxy 0750
+install -d -o root -g tproxy -m 0750 "$RUN/relay"
 key="$DATA/relay/token.key"
-if [[ ! -e "$key" ]]; then
+if [[ -n "${TPROXY_TOKEN_KEY:-}" ]]; then
+	# Supplied from outside (e.g. a Kubernetes Secret when /data is not persistent).
+	[[ "$TPROXY_TOKEN_KEY" =~ ^[0-9a-fA-F]{64}$ ]] ||
+		die "TPROXY_TOKEN_KEY must be 64 hex characters; generate one with: openssl rand -hex 32"
+	key="$RUN/relay/token.key"
+	hex_to_bin "$TPROXY_TOKEN_KEY" > "$key"
+	chmod 0400 "$key"
+	chown tproxy:tproxy "$key"
+elif [[ ! -e "$key" ]]; then
 	head -c 32 /dev/urandom > "$key.tmp"
 	chmod 0400 "$key.tmp"
 	chown tproxy:tproxy "$key.tmp"
@@ -114,7 +124,6 @@ if [[ ! -e "$key" ]]; then
 fi
 [[ -f "$key" ]] && [[ "$(stat -c %s "$key")" -eq 32 ]] || die "$key must be a regular 32-byte file"
 
-install -d -o root -g tproxy -m 0750 "$RUN/relay"
 printf '{"profiles":[{"name":"default","secret":"%s","backend":"127.0.0.1:2398","carrier_mode":"%s"}]}\n' \
 	"$secret" "$TPROXY_CARRIER_MODE" > "$RUN/relay/profiles.json"
 chmod 0400 "$RUN/relay/profiles.json"
@@ -357,7 +366,7 @@ web_proxy_secret() {
 	# Base path links carry base64url(0x70 || secret), exactly as upstream install.sh.
 	{
 		printf '\x70'
-		printf "$(printf %s "$secret" | sed 's/../\\x&/g')"
+		hex_to_bin "$secret"
 	} | base64 | tr '+/' '-_' | tr -d '=\n'
 }
 client_address="$hostname${base_path:+/$base_path}"

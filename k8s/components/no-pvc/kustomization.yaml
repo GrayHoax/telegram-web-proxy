@@ -1,0 +1,17 @@
+# Runs without a PersistentVolumeClaim: /data becomes an emptyDir.
+#
+# Enable it in k8s/kustomization.yaml (or: ./k8s/deploy.sh --no-pvc):
+#   components:
+#     - components/no-pvc
+#
+# Everything that defines the client link (TPROXY_SECRET, TPROXY_BASE_PATH) and
+# the relay token key (TPROXY_TOKEN_KEY) must then come from secret.env, so the
+# link and the signed tokens stay the same after a pod restart. MTProxy data is
+# downloaded from core.telegram.org on every start. Use only with TLS_MODE=off:
+# with TLS_MODE=auto every restart would request a new ACME certificate.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+  - path: delete-pvc.yaml
+  - path: data-emptydir.yaml

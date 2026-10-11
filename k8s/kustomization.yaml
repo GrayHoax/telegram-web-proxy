@@ -13,6 +13,11 @@ resources:
   - ingress.yaml          # ingress-nginx / Traefik + cert-manager
   # - httproute.yaml      # Gateway API instead of ingress.yaml
 
+# Without a PersistentVolumeClaim (/data in an emptyDir, state from secret.env).
+# deploy.sh --no-pvc uncomments these lines.
+# components:
+#   - components/no-pvc
+
 images:
   - name: tgweb-proxy
     # The image built by `docker build` or the GitHub workflow and pushed to your registry.
