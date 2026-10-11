@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prepares the kustomization and deploys it with kubectl.
 #
-#   ./k8s/deploy.sh --hostname proxy.example.com --image ghcr.io/me/tgweb-proxy:latest
+#   ./k8s/deploy.sh --hostname proxy.example.com --image ghcr.io/grayhoax/telegram-web-proxy:latest
 #
 # Options:
 #   --hostname NAME   public domain (written into config.env, ingress.yaml, httproute.yaml)

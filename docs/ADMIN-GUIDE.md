@@ -75,7 +75,7 @@ x86_64-узел.
 
 CI: `.github/workflows/docker-image.yml` собирает образ при push, по тегам, раз в
 неделю (чтобы подтягивать обновления базовых образов) и вручную, после чего
-публикует `ghcr.io/<owner>/<repo>:latest|sha-…|<tag>`. Для ручного запуска можно
+публикует `ghcr.io/grayhoax/telegram-web-proxy:latest|sha-…|<tag>`. Для ручного запуска можно
 передать `tproxy_ref`.
 
 ## 3. Режимы развёртывания

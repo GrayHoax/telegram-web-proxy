@@ -31,8 +31,8 @@
 1. Соберите и опубликуйте образ (или включите GitHub Actions из `.github/workflows`):
 
    ```bash
-   docker build -t ghcr.io/<you>/tgweb-proxy:latest .
-   docker push ghcr.io/<you>/tgweb-proxy:latest
+   docker build -t ghcr.io/grayhoax/telegram-web-proxy:latest .
+   docker push ghcr.io/grayhoax/telegram-web-proxy:latest
    ```
 
    Для приватного реестра добавьте `imagePullSecrets` в `deployment.yaml`.
@@ -45,7 +45,7 @@
 3. Разверните:
 
    ```bash
-   ./k8s/deploy.sh --hostname proxy.example.com --image ghcr.io/<you>/tgweb-proxy:latest
+   ./k8s/deploy.sh --hostname proxy.example.com --image ghcr.io/grayhoax/telegram-web-proxy:latest
    ```
 
    Скрипт подставит hostname в `config.env`, `ingress.yaml` и `httproute.yaml`, при

@@ -1,4 +1,4 @@
-# tgweb-proxy-docker
+# telegram-web-proxy
 
 Docker-сборка [telegramdesktop/tproxy-server](https://github.com/telegramdesktop/tproxy-server):
 серверной части экспериментального типа прокси **WEB** для Telegram. Сюда же входят
@@ -44,8 +44,8 @@ Desktop или экспериментального Android-клиента (см
 ## Быстрый старт (Linux-сервер x86_64 с доменом)
 
 ```bash
-git clone https://github.com/<ваш-аккаунт>/tgweb-proxy-docker.git
-cd tgweb-proxy-docker
+git clone https://github.com/GrayHoax/telegram-web-proxy.git
+cd telegram-web-proxy
 sudo ./scripts/install.sh --hostname proxy.example.com --email you@example.com
 ```
 

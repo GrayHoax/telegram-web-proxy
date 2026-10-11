@@ -97,11 +97,11 @@ apt update && apt install -y git
 ```
 
 ```bash
-git clone https://github.com/<ваш-аккаунт>/tgweb-proxy-docker.git
+git clone https://github.com/GrayHoax/telegram-web-proxy.git
 ```
 
 ```bash
-cd tgweb-proxy-docker && sudo ./scripts/install.sh --hostname anna-garden.ru
+cd telegram-web-proxy && sudo ./scripts/install.sh --hostname anna-garden.ru
 ```
 
 Скрипт:
@@ -137,7 +137,7 @@ Proxy link:                    https://t.me/webproxy?server=anna-garden.ru%2Fv6h
 5. На сервере (в том же окне терминала) выполните:
 
    ```bash
-   nano ~/tgweb-proxy-docker/site/index.html
+   nano ~/telegram-web-proxy/site/index.html
    ```
 
    Откроется пустой редактор. В чате нажмите «Copy» над блоком `index.html`, затем
@@ -146,13 +146,13 @@ Proxy link:                    https://t.me/webproxy?server=anna-garden.ru%2Fv6h
 6. Так же создайте файл `404.html`:
 
    ```bash
-   nano ~/tgweb-proxy-docker/site/404.html
+   nano ~/telegram-web-proxy/site/404.html
    ```
 
 7. Перезапустите контейнер, чтобы он подхватил страницу:
 
    ```bash
-   cd ~/tgweb-proxy-docker && docker compose restart
+   cd ~/telegram-web-proxy && docker compose restart
    ```
 
 8. Обновите в браузере `https://anna-garden.ru`. Должен открыться ваш новый сайт.
@@ -177,7 +177,7 @@ Proxy link:                    https://t.me/webproxy?server=anna-garden.ru%2Fv6h
 
 ## Полезные команды
 
-Все команды выполняются на сервере в папке проекта (`cd ~/tgweb-proxy-docker`).
+Все команды выполняются на сервере в папке проекта (`cd ~/telegram-web-proxy`).
 
 | Что нужно | Команда |
 |---|---|
@@ -199,7 +199,7 @@ Proxy link:                    https://t.me/webproxy?server=anna-garden.ru%2Fv6h
 | Скрипт пишет «нужен сервер x86_64» | Вы арендовали сервер на ARM. Закажите тариф на x86_64/AMD64. |
 | Telegram не понимает ссылку | В вашей версии Telegram нет поддержки WEB-прокси. |
 | Telegram долго «подключается» | Выполните `docker compose logs --tail 100` и поищите строки `ERROR` или `Disconnected from RPC Middle-End`. Во втором случае впишите в файл `.env` строку `MTPROXY_PUBLIC_IP=IP-вашего-сервера` и выполните `docker compose up -d`. |
-| Показывается «Сайт обновляется» вместо вашей страницы | Файл не сохранился или называется иначе. Выполните `ls ~/tgweb-proxy-docker/site` – там должен быть `index.html`. |
+| Показывается «Сайт обновляется» вместо вашей страницы | Файл не сохранился или называется иначе. Выполните `ls ~/telegram-web-proxy/site` – там должен быть `index.html`. |
 
 ---
 
