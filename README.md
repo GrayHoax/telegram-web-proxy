@@ -41,7 +41,119 @@ Docker-сборка [telegramdesktop/tproxy-server](https://github.com/telegramd
 Desktop или экспериментального Android-клиента (см. `ANDROID.md` и `IOS.md` в апстриме).
 Обычные MTProxy-ссылки `tg://proxy` здесь не работают.
 
-## Быстрый старт (Linux-сервер x86_64 с доменом)
+## Быстрый старт из готового образа
+
+Образ [`grayhoax/telegram-web-proxy:latest`](https://hub.docker.com/r/grayhoax/telegram-web-proxy)
+собирается и публикуется автоматически, клонировать репозиторий не нужно. Нужны
+сервер **x86_64** с Docker и домен, A-запись которого указывает на этот сервер.
+
+### Вариант 1. За вашим веб-сервером (nginx, Caddy, Apache, Traefik, …)
+
+TLS остаётся на вашем веб-сервере, а контейнер слушает только `127.0.0.1:8080` по HTTP:
+
+```bash
+docker run -d --name tgweb-proxy --restart unless-stopped \
+  -p 127.0.0.1:8080:8080 \
+  -e TPROXY_HOSTNAME=proxy.example.com \
+  -e TLS_MODE=off \
+  -v tgweb-data:/data \
+  -v "$PWD/site:/site:ro" \
+  --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add KILL \
+  --security-opt no-new-privileges \
+  grayhoax/telegram-web-proxy:latest
+
+docker exec tgweb-proxy show-link      # адрес, секрет и ссылка для клиента
+```
+
+Проксируйте **весь** hostname на `http://127.0.0.1:8080`. Минимальная конфигурация nginx:
+
+```nginx
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name proxy.example.com;
+    ssl_certificate     /etc/letsencrypt/live/proxy.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/proxy.example.com/privkey.pem;
+
+    client_max_body_size 4m;   # пакеты до 2 МБ
+    access_log off;            # в URL и заголовках передаются секретные токены
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;                    # реле проверяет Host
+        proxy_set_header X-Forwarded-For $remote_addr;  # ровно один адрес
+        proxy_set_header Upgrade $http_upgrade;         # несущие websocket*
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 90s;                         # long poll = 25 с
+        proxy_send_timeout 90s;
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+}
+```
+
+То же самое для Caddy (сертификат он получит сам):
+
+```caddyfile
+proxy.example.com {
+	log {
+		output discard
+	}
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Forwarded-For {client_ip}
+		flush_interval -1
+	}
+}
+```
+
+Что важно для любого веб-сервера:
+
+- передавайте исходный `Host` и не обрезайте путь;
+- таймаут ответа не меньше 90 с, размер тела не меньше 4 МБ, буферизация выключена;
+- пробрасывайте `Upgrade`/`Connection`;
+- отключите access-лог для этого хоста.
+
+Если веб-сервер подключается к контейнеру не с частного адреса (например, с другой
+машины), добавьте `-e TRUSTED_PROXIES="<его IP>"`. Конфигурации для Apache, Traefik,
+HAProxy, а также режим «прокси только под путём существующего сайта» описаны в
+[docs/REVERSE-PROXY.md](docs/REVERSE-PROXY.md).
+
+### Вариант 2. Контейнер сам принимает 80/443 и получает сертификат
+
+Подходит, если на сервере нет другого веб-сервера:
+
+```bash
+docker run -d --name tgweb-proxy --restart unless-stopped \
+  -p 80:8080 -p 443:8443 \
+  -e TPROXY_HOSTNAME=proxy.example.com \
+  -e ACME_EMAIL=you@example.com \
+  -v tgweb-data:/data \
+  -v "$PWD/site:/site:ro" \
+  --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add KILL \
+  --security-opt no-new-privileges \
+  grayhoax/telegram-web-proxy:latest
+
+docker logs -f tgweb-proxy             # получение сертификата и ссылка для клиента
+```
+
+### Что ещё
+
+- **Страница-обложка.** Сгенерируйте её по [docs/SITE-PROMPT.md](docs/SITE-PROMPT.md)
+  и положите в `./site/index.html` (можно добавить `404.html`, стили, картинки), затем
+  выполните `docker restart tgweb-proxy`. Без своей страницы показывается встроенная заглушка.
+- **Секрет и случайный путь** генерируются при первом запуске и хранятся в томе
+  `tgweb-data`, поэтому ссылка не меняется после перезапусков. Задать их явно можно
+  через `-e TPROXY_SECRET=$(openssl rand -hex 16)` и `-e TPROXY_BASE_PATH=…`. Все
+  переменные перечислены [ниже](#основные-параметры-env).
+- **Обновление:**
+  ```bash
+  docker pull grayhoax/telegram-web-proxy:latest
+  docker rm -f tgweb-proxy
+  ```
+  Затем повторите ту же команду `docker run`. Данные в томе сохранятся.
+
+## Автоматическая установка из исходников (Linux-сервер x86_64 с доменом)
 
 ```bash
 git clone https://github.com/GrayHoax/telegram-web-proxy.git
@@ -61,6 +173,9 @@ cp .env.example .env && nano .env        # TPROXY_HOSTNAME=...
 docker compose up -d --build
 docker compose exec tgweb-proxy show-link
 ```
+
+Если хочется Compose без локальной сборки, запустите готовый образ так:
+`TGWEB_IMAGE=grayhoax/telegram-web-proxy:latest docker compose up -d --no-build`.
 
 ## Документация
 
