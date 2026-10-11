@@ -16,7 +16,7 @@ resources:
 images:
   - name: tgweb-proxy
     # The image built by `docker build` or the GitHub workflow and pushed to your registry.
-    newName: ghcr.io/grayhoax/telegram-web-proxy
+    newName: grayhoax/telegram-web-proxy
     newTag: latest
 
 configMapGenerator:

@@ -86,7 +86,7 @@ scripts/update.sh             обновление и пересборка
 site/                         ваша страница-обложка (index.html, 404.html, ...)
 examples/reverse-proxy/       готовые конфигурации nginx, Caddy, Apache, HAProxy, Traefik
 k8s/                          манифесты Kubernetes (kustomize) и deploy.sh
-.github/workflows/            сборка образа и публикация в GHCR
+.github/workflows/            сборка образа и публикация в Docker Hub (grayhoax/telegram-web-proxy)
 ```
 
 ## Основные параметры (`.env`)

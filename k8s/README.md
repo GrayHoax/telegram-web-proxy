@@ -28,11 +28,11 @@
 
 ## Быстрый запуск
 
-1. Соберите и опубликуйте образ (или включите GitHub Actions из `.github/workflows`):
+1. Готовый образ `grayhoax/telegram-web-proxy:latest` публикуется в Docker Hub автоматически, этот шаг можно пропустить. Собственную сборку можно опубликовать так:
 
    ```bash
-   docker build -t ghcr.io/grayhoax/telegram-web-proxy:latest .
-   docker push ghcr.io/grayhoax/telegram-web-proxy:latest
+   docker build -t grayhoax/telegram-web-proxy:latest .
+   docker push grayhoax/telegram-web-proxy:latest
    ```
 
    Для приватного реестра добавьте `imagePullSecrets` в `deployment.yaml`.
@@ -45,7 +45,7 @@
 3. Разверните:
 
    ```bash
-   ./k8s/deploy.sh --hostname proxy.example.com --image ghcr.io/grayhoax/telegram-web-proxy:latest
+   ./k8s/deploy.sh --hostname proxy.example.com --image grayhoax/telegram-web-proxy:latest
    ```
 
    Скрипт подставит hostname в `config.env`, `ingress.yaml` и `httproute.yaml`, при

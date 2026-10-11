@@ -73,10 +73,25 @@ docker build -t tgweb-proxy:edge --build-arg TPROXY_REF=master .   # свежи�
 Apple Silicon сборка идёт через эмуляцию (`--platform linux/amd64`), в рантайме нужен
 x86_64-узел.
 
-CI: `.github/workflows/docker-image.yml` собирает образ при push, по тегам, раз в
-неделю (чтобы подтягивать обновления базовых образов) и вручную, после чего
-публикует `ghcr.io/grayhoax/telegram-web-proxy:latest|sha-…|<tag>`. Для ручного запуска можно
-передать `tproxy_ref`.
+CI: `.github/workflows/docker-image.yml` собирает образ при push в `main`/`master`,
+по тегам `v*`, раз в неделю (чтобы подтягивать обновления базовых образов) и вручную,
+после чего публикует его в Docker Hub как
+`grayhoax/telegram-web-proxy:latest|sha-…|<tag>`. Pull request'ы собираются без
+публикации. Для ручного запуска можно передать `tproxy_ref`.
+
+Для публикации в репозитории GitHub нужны секреты (**Settings → Secrets and variables →
+Actions → New repository secret**):
+
+| Секрет | Значение |
+|---|---|
+| `DOCKERHUB_USERNAME` | `grayhoax` |
+| `DOCKERHUB_TOKEN` | токен Docker Hub (**Account settings → Personal access tokens**, права *Read & Write*) |
+
+Готовый образ можно использовать без локальной сборки:
+
+```bash
+TGWEB_IMAGE=grayhoax/telegram-web-proxy:latest docker compose up -d --no-build
+```
 
 ## 3. Режимы развёртывания
 
